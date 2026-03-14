@@ -9,7 +9,9 @@
 /storage/pail
 !/storage/app/public/
 !/storage/app/public/**
-# /vendor
+/vendor/*
+/vendor/**
+vendor
 .env.backup
 .env.production
 .phpactor.json
