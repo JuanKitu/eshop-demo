@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eshop_app
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    container_name: eshop_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: eshop_database
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: eshop_user
+      MYSQL_PASSWORD: secret_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:
