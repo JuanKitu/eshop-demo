@@ -11,6 +11,10 @@ services:
       - "8000:80"
     depends_on:
       - db
+    volumes:
+      # Esto sincroniza tu archivo local con el contenedor.
+      # Ya no hace falta copiarlo manualmente.
+      - ./.env:/var/www/html/.env
 
   db:
     image: mysql:8.0

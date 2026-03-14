@@ -1,7 +1,7 @@
 # 1. Usar la imagen oficial de PHP 8.2 con Apache integrado
 FROM php:8.2-apache
 
-# 2. Habilitar el módulo rewrite de Apache (requerido por el .htaccess de Laravel)
+# 2. Habilitar el módulo rewrite de Apache
 RUN a2enmod rewrite
 
 # 3. Instalar dependencias del sistema y utilidades
@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# 4. Instalar las extensiones PHP requeridas por la documentación
+# 4. Instalar las extensiones PHP requeridas
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd zip xml
 
@@ -35,20 +35,26 @@ WORKDIR /var/www/html
 # 8. Copiar los archivos locales de tu proyecto al contenedor
 COPY . /var/www/html/
 
-# 9. Instalar dependencias de PHP y Node.js directamente en el contenedor
+# 9. Instalar dependencias de PHP y Node.js
 RUN composer install --no-interaction --optimize-autoloader
 RUN npm install && npm run build
 
-# 10. Configurar los permisos exigidos por el instalador
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 775 /var/www/html/storage \
-    && chmod -R 775 /var/www/html/bootstrap/cache
-
-# Nota: Como tienes un index.php en tu directorio raíz, mantendremos el DocumentRoot 
-# estándar de Apache en /var/www/html en lugar de /var/www/html/public.
+# 10. Crear script de auto-reparación y arranque (Entrypoint)
+# Este bloque automatiza TODO lo que tuvimos que arreglar manualmente.
+RUN echo '#!/bin/bash\n\
+mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache public/storage resources/lang\n\
+chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public/storage /var/www/html/resources/lang\n\
+chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public/storage /var/www/html/resources/lang\n\
+php artisan storage:link || true\n\
+sed -i "s|VITE_DEV_SERVER=true|VITE_DEV_SERVER=false|g" .env || true\n\
+sed -i "s|APP_URL=http://localhost$|APP_URL=http://localhost:8000|g" .env || true\n\
+sed -i "s|ASSET_URL=http://localhost$|ASSET_URL=http://localhost:8000|g" .env || true\n\
+php artisan optimize:clear\n\
+exec apache2-foreground' > /usr/local/bin/start.sh \
+&& chmod +x /usr/local/bin/start.sh
 
 # 11. Exponer el puerto web
 EXPOSE 80
 
-# 12. Iniciar Apache en primer plano
-CMD ["apache2-foreground"]
+# 12. Iniciar usando el script de auto-reparación
+CMD ["start.sh"]
